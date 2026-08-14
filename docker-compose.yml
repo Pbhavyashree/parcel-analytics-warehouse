@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: paw-postgres
+    environment:
+      POSTGRES_USER: paw
+      POSTGRES_PASSWORD: paw
+      POSTGRES_DB: parcel_analytics
+    ports:
+      - "5433:5432"        # 5433 on the host so it does not collide with a local Postgres
+    volumes:
+      - paw_data:/var/lib/postgresql/data
+    # Tuned for a laptop, not a server. The defaults ship with shared_buffers at
+    # 128MB and work_mem at 4MB, which makes every aggregate in this project
+    # spill to disk and turns index-vs-seq-scan comparisons into a measurement of
+    # temp file I/O rather than of the plan.
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c work_mem=32MB
+      -c maintenance_work_mem=256MB
+      -c max_wal_size=4GB
+      -c random_page_cost=1.1
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paw -d parcel_analytics"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  paw_data:

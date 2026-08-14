@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  warehouse:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: paw
+          POSTGRES_PASSWORD: paw
+          POSTGRES_DB: parcel_analytics
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U paw -d parcel_analytics"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5433
+      PGUSER: paw
+      PGPASSWORD: paw
+      PGDATABASE: parcel_analytics
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # Migrations run against an empty database: this catches ordering
+      # mistakes, a partition range that no longer covers the seed data, and
+      # anything that only worked because it was applied by hand once.
+      - name: Apply migrations
+        run: for f in migrations/*.sql; do echo "-> $f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+
+      - name: Seed
+        run: for f in seed/*.sql; do echo "-> $f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+
+      # The suite raises an exception on failure, so a regression fails the build
+      # rather than producing a warehouse that quietly serves wrong numbers.
+      - name: Data quality suite
+        run: psql -v ON_ERROR_STOP=1 -f tests/data_quality.sql
+
+      - name: Analytical queries
+        run: psql -v ON_ERROR_STOP=1 -q -f queries/analytics.sql > /dev/null
