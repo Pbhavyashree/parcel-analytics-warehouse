@@ -151,7 +151,7 @@ Here two carriers hold 60% of volume, weekends run at ~35% of a weekday, and
 November–December roughly doubles — which the peak-season query confirms at a
 1.97–1.99× multiplier across regions.
 
-## Two bugs worth keeping in the record
+## Three bugs worth keeping in the record
 
 **Generation produced two million identical rows.** The randoms were computed in
 a `LATERAL` subquery that did not reference the outer `generate_series` column,
