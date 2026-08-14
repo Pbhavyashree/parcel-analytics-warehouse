@@ -168,6 +168,8 @@ window sliced its sequence in half and the surviving rows legitimately started
 at 4. The data was right; the test was wrong. Any assertion about a whole entity
 has to select whole entities — the fix samples by `shipment_id`.
 
+**CI caught a stale materialized view.** The matview is created by migrations, which run before the seed — so it is built against an empty fact table. Locally I refreshed it by hand before testing and never noticed. The pipeline had no refresh step, so the first CI run failed on check 8 with a 65,756-row discrepancy. The test was right, the workflow was wrong. Refreshing after the seed is now an explicit step, which is where it belongs in a real load job anyway.
+
 ## What I would add next
 
 - **Incremental refresh** of the matview. `REFRESH CONCURRENTLY` rebuilds the
