@@ -42,9 +42,15 @@ jobs:
 
       - name: Seed
         run: for f in seed/*.sql; do echo "-> $f"; psql -v ON_ERROR_STOP=1 -q -f "$f"; done
-
+        
+      # The matview is created by migrations against an empty fact table, so it
+      # must be refreshed after the seed. In production this is the last step of
+      # the load job; here it is the step whose absence CI caught.
+      - name: Refresh materialized view
+        run: psql -v ON_ERROR_STOP=1 -c "REFRESH MATERIALIZED VIEW mv_daily_facility_throughput;"
+        
       # The suite raises an exception on failure, so a regression fails the build
-      # rather than producing a warehouse that quietly serves wrong numbers.
+      # rather than producing a warehouse that quietly serves wrong numbers.  
       - name: Data quality suite
         run: psql -v ON_ERROR_STOP=1 -f tests/data_quality.sql
 
